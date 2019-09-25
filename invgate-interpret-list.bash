@@ -2,7 +2,7 @@
 debugLevel=INFO # NOTE > INFO > WARN > ERR
 
 declare -A columnTR # Não acentuar. Usar minúsculas. Regex pode ser usado. Ordem será preservada.
-columnTR[ticketID]="^id$|ticketid" # Chave mandatória. Permite alterar valores associados.
+columnTR[ticketID]="^id$|ticketid|called number" # Chave mandatória. Permite alterar valores associados.
 columnTR[pipeline]="helpdesk|fila"
 columnTR[client]="client|store|loja"
 columnTR[occurrMoment]="occurence|ocorrencia"
@@ -10,13 +10,14 @@ columnTR[ticketMoment]="creation|criacao"
 columnTR[priority]="priority|prioridade"
 columnTR[operationsError]="operation.*err|err.*operacional|err.*operacao"
 columnTR[status]="status|estado"
-columnTR[subject]="subject|assunto"
+columnTR[subject]="subject|description|assunto"
 columnTR[category]="category|categoria"
 columnTR[segment]="localizacao"
+columnTR[nodes]="device|ativos.*relacionados"
 columnTR[group]="#" # Não alterar: para fins de impressão. Permite reordenar.
 columnTR[service]="#" # Não alterar: para fins de impressão. Permite reordenar.
 columnTR[solutionMoment]="solution.*date|data.*solucao"
-columnTR[closeMoment]="close.*date|data.*fechamento"
+columnTR[closeMoment]="close.*date|dateclosed|data.*fechamento"
 columnTR[agent]="agent"
 
 declare -A groupTR
@@ -24,7 +25,7 @@ groupTR[COD]="COD"
 groupTR[DLV]="DLV|Deliver|Recall"
 groupTR[Printer]="[ie]mprim[ei]|[ie]mpress"
 groupTR[Pinpad]="pin|trava.*passa.*cart"
-groupTR[NGK]="t[oó]te[mn]|NGK|CSO|POS(2[1-9]|30)"
+groupTR[CSO]="t[oó]te[mn]|NGK|CSO|POS(2[1-9]|30)"
 groupTR[TAP]="TAP|Tablet"
 groupTR[ORB]="ORB|Dual Point"
 groupTR[MCC]="MCC|Caf[ée]|POS6[1-9]"
@@ -35,36 +36,45 @@ groupTR[Production]="Produ[cç]|Prim[áa]r|Sec[uo]nd[áa]r|Failover"
 groupTR[MFY]="MFY|Pedidos.*cozinha"
 groupTR[OAT]="OAT"
 groupTR[KVS]="KVS|Monitor"
-groupTR[WAY]="WAY|GSC|station"
+groupTR[GSC]="WAY|GSC|station"
 groupTR[Drawer]="Cash|Drawer|Gaveta"
 
 declare -A serviceTR # Ordem será preservada. Evitar os termos individuais Aplicação > Falha Erro.
-serviceTR["Instrução GPRS"]="solicita.*cart[ãa]o.*GPRS|GPRS.*solicita.*cat[ãa]o"
-serviceTR["Instrução BOG"]="BOG|cupo[mn]|smart"
-serviceTR["Instrução DLV"]="(falha|erro).*(puxa|recal)|pedido"
-serviceTR["PGTO Digital"]="(pgto|pagamento).*digital|mercado.*(pago|paggo)"
-serviceTR["Produto/Outage"]="outage|falha.*exib.*prod|prod.*(inactive|inativo)"
+serviceTR["Orientação GPRS"]="(cart[ãa]o|senha).*GPRS|GPRS.*(solicita|ped[ei]).*cat[ãa]o"
+serviceTR["Orientação BOG"]="BOG|cupo[mn]|smart"
+serviceTR["Orientação DLV"]="(falha|erro).*(puxa|recal)|pedido|pre[çc]o.*(Delivery|DLV)|lata"
+serviceTR["PGTO Digital"]="(aparece|exib[ei]|apresenta).*(pgto|pagamento|carteira).*digital|carteira.*digital.*(aparece|indispon[íi]vel)|mercado.*(pago|paggo)"
+serviceTR["Relatório"]="relat[óo]rio|imprime|gera|extra[çc][ãa]o|extrair|fecha.*operador|falha.*relat[óo]rio"
+serviceTR["Vendas"]="(cancel|falha|totaliza|erro|problema).*(venda|compra|registra|finaliza)|(venda|compra|POS).*(falha|cancel|totaliza)|trava.*pagamento|finaliza.*venda|product.*active"
+serviceTR["Megadata"]="habilit.*aplicativo|(inclui|cartela).*promo|possui.*tecla"
+serviceTR["Produto"]="(diverg[êe]ncia|falha|atualiza).(valor|*pre[çc]o)|(valor|pre[çc]o).*(diverge|errado|incorret)|(cadastro|erro).*produto|imposto|CFOP"
+serviceTR["Outage"]="outage|prod.*inac\?tiv|(exclu|remove|retira|abilit|ativa|inclu|exib|aparece|aus[êe]ncia|menu).*(PLU|prod|combo|promo|oferta|menu|tecla|tela|MCC|Caf[ée])|(PLU|prod|promo|menu).*(abilita|ativa|aparece)"
+serviceTR["Apply Update"]="apply.*update|UPDT|setup|atualiz[ao]|aplica.*(pacote|campanha|POS)|novos|ima[gj]e[mn]"
+serviceTR["WAY/Produção"]="WAY|GSC|MCC.*OAT|Produ[çc][ãa]o|Prim[áa]ria|senha.*indev|off\? \?line|recall.*(face|drive|DT)|produto.*aparece.*(tela|monitor)|Rot[ae]"
 serviceTR["Infra/Comunicação"]="comunica|produ[çc][ãa]o.*offline"
-serviceTR["WAY/Produção"]="WAY|GSC|MCC.*OAT|Produ[çc][ãa]o|Prim[áa]ria|senha.*indev"
-serviceTR["Cadastro/Vendas"]="(endere[çc]o|logradouro|dado).*fiscal|(altera|imprim[ei]).*(nome|endere[çc]o|logradouro|CNPJ|IE|PROCON|dados)"
-serviceTR["Apply Update"]="apply.*update|UPDT|(aplica|atualiza).*pacote|setup"
-serviceTR["POS Layout"]="(menu|remo).*(menu|mcc)|(des|h)abilita.*tela"
-serviceTR["Nó reiniciando"]="inicia"
-serviceTR["Cadastro de Preço"]="pre[çc]o.*incorreto"
-serviceTR["Table Service"]="Table.*Service|serv.*mesa"
-serviceTR["Business Day"]="abertura"
-serviceTR["Cancelamento Vendas"]="cancel.*venda"
+serviceTR["Incorporação"]="flex|incorpora|leitura.*vendas|store.*system|TLD|relat[óo]rio|sangria"
+serviceTR["Cadastro Fiscal"]="(endere[çc]o|logradouro|dado).*fiscal|(altera|imprim[ei]).*(nome|endere[çc]o|logradouro|CNPJ|IE|PROCON|dados)|cadastro.*RCT"
+serviceTR["Dados Fiscais"]="(endere[çc]o|logradouro|dado).*fiscal|(altera|imprim[ei]).*(nome|endere[çc]o|logradouro|CNPJ|IE|PROCON|dados)|cadastro.*RCT"
 serviceTR["Roteamento"]="roteamento|n[ãa]o.*envia.*pedido|(falha|KVS).*exib.*pedido"
-serviceTR["Performance"]="travando|lent[ao]|lentid[ãa]o"
-serviceTR["FLEX/Incorporação"]="flex|leitura.*vendas|falha.*STLD|relat[óo]rio|sangria"
-serviceTR["Topology/Install"]="remo[çc][aã]o|remover|excluir|instala|baixa.*imagem"
-serviceTR["Cash Drawer"]="cash|drawer|abre"
 serviceTR["Pinpad"]="(falha|trava).*cart[ãa]o"
-serviceTR["Card reader"]="cart[ãa]o*inv[áa]lido"
-serviceTR["Impressora"]="config.*impressora|(impress[ãa]o|impressora).*(erro|offline|funciona)|pic\?k\?list"
-serviceTR["Relatório"]="relat[óo]rio|imprime|gera|extra[çc][ãa]o|extrair"
-serviceTR["Nó Bloqueado"]="POS.*Bloqu[ei]ado"
-serviceTR["COD"]="erro.*COD"
+serviceTR["Performance"]="travando|lent[ao]|lentid[ãa]o|desempenho"
+serviceTR["Inicialização"]="inicia|-1|caindo|trava|tela.*azul|(abr[ei]|sobe).*NP6|NP6.*(abr[ei]|sobe)"
+serviceTR["Business Day"]="abertura|fecha|busines|(POS|Time).*(close|block|bloqueado)"
+serviceTR["Table Service"]="Table.*Service|serv.*mesa"
+serviceTR["Topology/Install"]="remo[çc][aã]o|remover|excluir|instala|configura|baixa.*imagem"
+serviceTR["Cash Drawer"]="cash|drawer|abre"
+serviceTR["Card reader"]="cart[ãa]o*(inv[áa]lido|gerencial)|card \?read"
+serviceTR["Impressora"]="impress[ãa]o|impressora|pic\?k\?list"
+serviceTR["RemPOD"]="drive.*opera.*balc[ãa]o"
+serviceTR["Security Data"]="cart[ãa]o.*inv[áa]lido|senha.*geren"
+serviceTR["Side by Site"]="c[âa]mera|Side.*Side"
+serviceTR["PAF/ECF"]="PAF|redu[çc][ãa]o Z"
+serviceTR["Dual Point"]="Dual \?Point"
+serviceTR["Delivery"]="DLV|delivery"
+serviceTR["NGCOD"]="COD"
+serviceTR["Site RFM"]="subir.*RFM|planilha.*RFM"
+serviceTR["Configuração RFM"]="KVS.*Design|seta.*invest"
+serviceTR["Configuração Infra"]="Tamanho|Redimens|Descalibra"
 
 srcFile=$1
 tmpCSV=/tmp/invgate.$$.csv
@@ -102,6 +112,7 @@ logIt() {
 }
 
 [ ! -e "$srcFile" ] && logIt "ERR :: Inform a valid CSV ou XLSX file as a parameter. Abort." && exit 1
+logIt "START :: Running [$0] under process [$$] with debug level [$debugLevel]..."
 
 dstCSV=$(echo $srcFile | sed 's/\..*/.interpreted.csv/')
 dstPNG=$(echo $srcFile | sed 's/\..*/.interpreted.png/')
@@ -118,7 +129,7 @@ for L in $(grep ^serviceTR $0); do
 	serviceOrder+=( "$key" )
 done
 
-[[ $srcFile =~ xlsx$ ]] && xlsx2csv -d ';' $srcFile > $tmpCSV || cat $srcFile | iconv -f ISO-8859-1 -t UTF-8 | dos2unix > $tmpCSV
+[[ $srcFile =~ xlsx$ ]] && xlsx2csv -d ';' $srcFile | tr -d '"' > $tmpCSV || cat $srcFile | iconv -f ISO-8859-1 -t UTF-8 | dos2unix > $tmpCSV
 origCount=$(wc -l $tmpCSV | sed 's/\([0-9]\+\) .*/\1/g')
 
 declare -A ticketsPerGroup
@@ -185,21 +196,27 @@ for L in $(cat $tmpCSV); do
 				val=$(echo $val | sed 's/[^A-Za-z0-9 ,\._-]//g' | sed 's/.*SD-[0-9]\{6,7\} //' | sed -e 's/^ \+//' -e 's/ \+$//' -e 's/ \+/ /g') ;;
 			category)
 				val=$(echo $val | sed 's/.*Restaurante Brasil > //') ;;
+			nodes)
+				val=$(echo $val | sed -e 's/\[Workstation\( offline\)\?\] BR0[0-9]\{4\}//g' -e 's/ (Asset Brasil),\?//g') ;;
 		esac
 
 		[[ $key =~ Moment ]] && [[ -n $val ]] && val=$(fDate $val)
 		valOf[$key]=$val
 	done
-	
-	( [ -z "${valOf[ticketID]}" ] || [ -z "${valOf[subject]}" ] || [ -z "${valOf[ticketMoment]}" ] ) && continue
-	[[ ${valOf[client]} =~ [^A-Z] ]] && valOf[client]=$(echo ${valOf[subject]} | sed 's/[^A-Z]//g' | sed 's/\(.\{3\}\).*/\1/')
 
-	valOf[group]=Other
-	for key in "${!groupTR[@]}"; do
-		[ -n "$(echo ${valOf[segment]} | grep -i -E ${groupTR[$key]})" ] && valOf[group]=$key
-		[ -n "$(echo ${valOf[subject]} | grep -i -E ${groupTR[$key]})" ] && valOf[group]=$key && break
-		# We trust on subject more than in the chosen segment. Hope that improves one day.
-	done
+	( [ -z "${valOf[ticketID]}" ] || [ -z "${valOf[subject]}" ] || [ -z "${valOf[ticketMoment]}" ] ) && continue
+	[[ ${valOf[client]} =~ [^A-Z0-9] ]] && valOf[client]=$(echo ${valOf[subject]} | sed 's/[^A-Z]//g' | sed 's/\(.\{3\}\).*/\1/')
+
+	if [[ -n ${valOf[nodes]} ]]; then
+		valOf[group]=${valOf[nodes]:0:3}
+	else
+		valOf[group]=Other
+		for key in "${!groupTR[@]}"; do
+			[ -n "$(echo ${valOf[segment]} | grep -i -E ${groupTR[$key]})" ] && valOf[group]=$key
+			[ -n "$(echo ${valOf[subject]} | grep -i -E ${groupTR[$key]})" ] && valOf[group]=$key && break
+			# We trust on subject more than in the chosen segment. Hope that improves one day.
+		done
+	fi
 
 	valOf[service]=Other
 	for key in "${serviceOrder[@]}"; do
@@ -233,19 +250,19 @@ for L in $(cat $tmpCSV); do
 
 	((regCount++))
 	percent=$(echo "($regCount*100)/$origCount" | bc)
-	msg="Parsed lines: ${percent}%"; [ $percent -lt 100 ] && msg+="..." || msg+="  "
-	[ $debugLevel -gt 0 ] && echo -en "\rINFO :: $msg" || ( [[ "$regCount" =~ "0" ]] && logIt "NOTE :: $msg" )
+	#msg="Parsed lines: ${percent}%"; [ $percent -lt 100 ] && msg+="..." || msg+="  "
+	#[ $debugLevel -gt 0 ] && echo -en "\rINFO :: $msg" || ( [[ "$regCount" =~ "0" ]] && logIt "NOTE :: $msg" )
+	echo -en "\rINFO :: Parsed lines: ${percent}% ($regCount/$origCount)"; [ $percent -lt 100 ] && echo -en "..."; echo -en "          "
 done; echo; ((--regCount)) # <- Remove header count
-logIt "INFO :: Generated file: $dstCSV."
+logIt "NOTE :: Generated file: $dstCSV."
 
 for key in "${!ticketsPerService[@]}"; do
 	#[ ${ticketsPerService[$key]} -lt 2 ] && continue
 	logIt "${ticketsPerService[$key]}\t${translateService[$key]}"
-done | sort -rn > $tmpCSV
+done | sort -rn | head -13 > $tmpCSV
 
-#now=$(date +%s)
 roundUp="$(echo "($(head -1 $tmpCSV | sed 's/[^0-9]//g')/10) + 2" | bc)0"
-title="Chamados abertos, $(date -d"$(stat $srcFile | grep Modify | sed 's/Modify: //')" '+%d/%m/%Y %H:%M')"
+title="$regCount chamados abertos, $(date -d"$(stat $srcFile | grep Modify | sed 's/Modify: //')" '+%d/%m/%Y %H:%M')"
 gnuplot -e " \
 	set terminal png; set terminal png size 400,600; set bmargin 8; set lmargin 5; set size 0.95,0.95; \
 	set label 1 '$title' at graph -0.1, 0.35 centre rotate by 90; \
@@ -253,9 +270,9 @@ gnuplot -e " \
 	set yrange [0:$roundUp]; set grid y; set y2tics rotate by 90; set xtics rotate by 90 offset 0,-7; \
 	set datafile separator '\t'; plot '$tmpCSV' using 0:1:0:xtic(2) notitle with boxes lc variable \
 " > ${dstPNG} && convert -rotate 90 ${dstPNG} ${dstPNG}.tmp.png && mv ${dstPNG}.tmp.png ${dstPNG}
-logIt "INFO :: Generated file: $dstPNG."
+logIt "NOTE :: Generated file: $dstPNG."
 
-logIt "\nINFO :: Valid tickets parsed: $regCount"
+logIt "INFO :: Valid tickets parsed: $regCount"
 
 logIt "\nTop Service offensor list:"
 head -5 $tmpCSV
@@ -278,7 +295,9 @@ i=0; for client in "${!ticketsPerClient[@]}"; do
 	((i++)); [ $i -gt 9 ] && break
 done; [ $i -eq 0 ] && logIt "(no registries found)" || echo
 
-exit
+
+##### GOTO END
+if false; then
 
 # Sort to list by age (recent and ancient)
 head -1 $dstCSV > $tmpCSV
@@ -347,10 +366,16 @@ else
 	echo -e $res
 fi
 
+fi ### CONTINUE TO END
 
-# Format to open better in Excel
-cat $tmpCSV | iconv -f UTF-8 -t ISO-8859-1 > $dstCSV
+
+# Format to better open in Excel
+logIt "NOTE :: Reformatting file [$dstCSV] for Excel..."
+#cat $tmpCSV | iconv -f UTF-8 -t ISO-8859-1 > $dstCSV
+cat $dstCSV | iconv -f UTF-8 -t ISO-8859-1 > $tmpCSV && mv -f $tmpCSV $dstCSV
 
 # Clean garbage
 #rm -f $tmpCSV
+
+logIt "NOTE :: Done!"
 
