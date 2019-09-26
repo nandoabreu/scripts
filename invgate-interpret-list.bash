@@ -377,5 +377,5 @@ cat $dstCSV | iconv -f UTF-8 -t ISO-8859-1 > $tmpCSV && mv -f $tmpCSV $dstCSV
 # Clean garbage
 #rm -f $tmpCSV
 
-logIt "NOTE :: Done!"
+logIt "DONE :: Closing process [$0]."
 
