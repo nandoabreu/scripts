@@ -295,7 +295,7 @@ i=0; for client in "${!ticketsPerClient[@]}"; do
 	((i++)); [ $i -gt 9 ] && break
 done; [ $i -eq 0 ] && logIt "(no registries found)" || echo
 
-
+################################################ MUST CONTINUE FROM HERE
 ##### GOTO END
 if false; then
 
