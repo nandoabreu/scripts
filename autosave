@@ -1,0 +1,195 @@
+#! /usr/bin/env bash
+# Print help: /path/to/autosave --help
+
+print_help() {
+  printf "Usage:\n  /path/to/autosave [-m int] [-k int] [-v]\n"
+
+  printf "\n"
+  printf "This script creates incremental backups of files you are working on.\n"
+  printf "Placed in cron, it will verify files that changed in user's home path\n"
+  printf "in the past 60 (default) minutes and tar+bzip them to a 0700 permission\n"
+  printf "/tmp/autosave.user dir, keeping the previous 10 (default) backups.\n"
+  printf "Manually, will verify changed files in the current path.\n"
+
+  printf "\n"
+  printf "Cron examples:\n"
+  printf "  55,15,35 8-23 * * * bash /path/to/autosave\n"
+  printf "  */10 * * * * bash /path/to/autosave --keep 5 -v >> /tmp/autosave.log\n"
+
+  printf "\n"
+  printf "Options:\n"
+  printf "  -m, --minutes <number>      search for files changed in the last N mins\n"
+  printf "  -k, --keep <number>         number of backup files to keep/rotate\n"
+  printf "  -v, --verbose               activate verbose mode\n"
+}
+
+#set -x
+IFS=$'\n'
+
+keep=10
+min=60
+debug=false
+
+verify=('. -not -path "*/\.*"' .gitconfig .ssh .aws)
+ignore=('\.$' 'Downloads/')
+
+me=$(echo $0 | rev | cut -d'/' -f1 | rev)
+: ${USER:=$(printf $HOME | rev | cut -d'/' -f1 | rev)} # cron has home but no user
+
+repo=/tmp/$me.$USER
+warn=$(ls -d $HOME/Desktop 2>/dev/null || echo $HOME)/ERRORS_in_$me.txt
+
+verbose() {
+  ! $debug && return 0
+  printf "$(date +'%F %T') $$ $USER $me: $*\n"
+}
+
+cleanup() {
+  rm ${repo}/stored.txt 2>/dev/null && verbose "Removed ${repo}/stored.txt"
+  rm ${repo}/changes.txt 2>/dev/null && verbose "Removed ${repo}/changes.txt"
+}
+
+create_repo() {
+  if [ ! -d $repo ]; then
+    install -d -m 0700 -o $USER $repo
+    verbose "Repository created:\n$(ls -ld --time-style='+%F %R' $repo)"
+  else
+    verbose "Repository exists:\n$(ls -ld --time-style='+%F %R' $repo)"
+  fi
+}
+
+locate_changes() { # this will return the number of changed files found
+  [ -n "$ignore" ] && ignore="grep -v -e '$(IFS=$" "; echo "${ignore[*]}" | sed "s# #' -e '#g")'" || ignore=cat
+
+  file=$repo/changes.txt
+  for item in "${verify[@]}"; do
+    for listing in $(eval find $item -mmin -$min -type f -print0 2>/dev/null | xargs -0 ls -ld --time-style='+%F %R' | eval $ignore); do
+      listing=$(echo $listing | sed -e "s#^\([-drwxs]\+\) [0-9]\+ \(\w\+\) \(.*\) \([0-9:]\{4,5\}\) \(.*\)#\1 \2/\3 \4:\5#")
+      data=$(echo $listing | cut -d':' -f1,2 | sed 's# \+# #g')
+      filename=$(echo $listing | cut -d':' -f3 | sed 's#^./##' | sed "s#^#$PWD/#")
+      echo $data $filename
+    done
+  done | sort -u > $file
+
+  files=$(wc -l < $file)
+  verbose "$files files changed in the last $min minutes"
+  [ $files -gt 0 ] && verbose "All files that changed:\n$(cat $file)"
+  return $files
+}
+
+filter_and_validate() { # # this will return the number of changed files to pack
+  # Note: a file A changed at 0:00 will be backed-up when script runs at 0:01 with -m 60
+  #       but a new execution at 0:05 must not include file A in a possible new package
+
+  files=$(ls -1 $repo/*bz2 2>/dev/null | wc -l)
+  for file in $(ls -1 $repo/*bz2 2>/dev/null); do
+    for listing in $(tar tvf $file); do
+      listing=$(echo $listing | sed -e "s#\([0-9]\{1,2\}:[0-9]\{2\}\) \(.*\)#\1:\2#")
+      data=$(echo $listing | cut -d':' -f1,2 | sed 's# \+# #g')
+      filename=$(echo $listing | cut -d':' -f3)
+      echo $data $filename
+    done
+  done | sort -u | grep -v ^$ > $repo/stored.txt
+  verbose "Found $(wc -l < $repo/stored.txt) backups in $files packages"
+
+  if [ $files -gt 0 ]; then
+    sed -i 's#\([0-9:]\+\) /#\1 #' $repo/changes.txt # tar stores files without leading /
+    verbose "List of stored files:\n$(cat $repo/stored.txt)"
+    changes=$(grep -Fvxf $repo/stored.txt $repo/changes.txt)
+    echo "$changes" | grep -v ^$ > $repo/changes.txt
+  fi
+
+  files=$(wc -l < $repo/changes.txt)
+  verbose "$files files changed since the last known backups"
+  [ $files -gt 0 ] && verbose "Non stored files that changed:\n$(cat $file)"
+  return $files
+}
+
+pack_valid_changes() {
+  file=$repo/$(date +%s.%N | head -c 14).tar
+  cat $repo/changes.txt | cut -d' ' -f6- | sed 's#^#/#' | tar cpf $file -T - 2>/dev/null # restore leading / before tar
+
+  if [ $? -gt 0 ]; then
+    echo "Errors occured while saving changes with $me" > $warn
+    echo "Check $repo/stored.txt and $repo/changes.txt" >> $warn
+    echo "Tou may also like to comment any cron lines referring $me" >> $warn
+    echo "Commands to be looking at:" >> $warn
+    echo "grep -Fvxf $repo/stored.txt $repo/changes.txt" >> $warn
+    echo "cat $repo/changes.txt | cut -d' ' -f6- | tar cpf $file -T -" >> $warn
+    exit 4
+  elif [ -e $warn ]; then
+    rm $warn
+  fi
+
+  bzip2 -f $file
+  if [ $? -eq 0 ]; then
+    warn=$(echo $warn | sed 's#ERRORS#WARNINGS#')
+    echo "An error occured while trying to bzip a file from $me" >> $warn
+    echo "This is a minor warning, the backup was probably created, but" >> $warn
+    echo "not compressed and this may interfear in the next execution of $me" >> $warn
+    echo "Commands to be looking at:" >> $warn
+    echo "ls -l $repo/" >> $warn
+    echo "bzip2 -f $file" >> $warn
+    exit 5
+  fi
+}
+
+rotate_packages() {
+  for file in $(ls -1t $repo/*bz2 | tail -n +$keep); do
+    rm $repo/$file
+  done
+}
+
+
+while [ ! -z "$1" ]; do
+  if [[ "$1" =~ ^--?h(elp)?$ ]]; then
+    print_help
+    exit 0
+
+  else
+    if [[ "$1" =~ ^--?v(erbose)?$ ]]; then
+      debug=true && shift
+
+    elif [[ "$1" =~ ^--?k(eep)?$ ]]; then
+      if [ ! -n "$2" ] || [[ ! "$2" =~ ^[0-9]+$ ]] || [ ! "$2" -gt 0 ]; then
+        print_help
+	printf "\nMust be an number greater than 0 after $1\n"
+	exit 1
+      fi
+
+      keep=$2 && shift 2
+
+    elif [[ "$1" =~ ^--?m(in(utes?)?)?$ ]]; then
+      if [ ! -n "$2" ] || [[ ! "$2" =~ ^[0-9]+$ ]] || [ ! "$2" -gt 0 ]; then
+        print_help
+	printf "\nMust be an number greater than 0 after $1\n"
+	exit 2
+      fi
+
+      min=$2 && shift 2
+
+    else
+      print_help && printf "\nInvalid parameter: $1\n" && exit 3
+
+    fi
+  fi
+done
+
+
+verbose "Starting with -v -m $min -k $keep, from $PWD"
+verbose "Verifying changes: $(IFS=$" "; echo ${verify[*]})"
+verbose "Ignoring files with: $(IFS=$" "; echo "${ignore[*]}")"
+
+create_repo
+locate_changes; changes=$?
+
+if [ $changes -gt 0 ]; then
+  filter_and_validate; store=$?
+  if [ $store -gt 0 ]; then
+    pack_valid_changes && rotate_packages
+  fi
+fi
+
+cleanup
+verbose "Script ended"
+
